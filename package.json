@@ -1,0 +1,16 @@
+{
+  "name": "ina219",
+  "version": "1.0.0",
+  "description": "",
+  "main": "client.js",
+  "dependencies": {
+    "i2c": "^0.2.3",
+    "i2c-bus": "^1.2.2",
+    "rasbus": "file:../rasbus"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:johntalton/ina219.git"
+  },
+  "author": "johntalton@gmail.com"
+}
