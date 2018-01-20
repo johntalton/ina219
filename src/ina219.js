@@ -29,6 +29,25 @@ const modes = {
   CONTINUOUS_BUS_SHUNT: 0b111
 };
 
+const valid_brng = [16, 32];
+const vlaid_pg = [1, 2, 4, 8];
+
+const masks = {
+	CFG_RESET: 0x8000,
+	CFG_BRNG:  0x2000,
+	CFG_PGA:   0x1800,
+	CFG_BADC:  0x0780,
+	CFG_SADC:  0x0078,
+	CFG_MODE:  0x0007,
+};
+
+const pg  = { // post-shifted pg values
+	GAIN_1: 0x0000,
+	GAIN_2: 0x0800,
+	GAIN_4: 0x1000,
+	GAIN_8: 0x1800
+}
+
 /**
  *
  **/
@@ -38,7 +57,16 @@ class Sensor {
   }
 
   setConfig(reset, brng, pga, badc, sadc, mode) {
+
+	if(!valid_brng.includes(brng)) { throw Error('invalid brng value'); }
+	if(!valid_pg.includes(pga)) { throw Error('invalid pga value'); }
+	if(mode > masks.CFG_MODE || mode < 0){ throw Error('invalid mode'); }
+
 	let cfg = 0;
+	if(reset) { cfg |= masks.CFG_RESET; }
+	if(brng === 32) { cfg |= masks.CFG_BRNG; }
+	cfg |= pga;
+
 	return this._bus.write(registers.CONFIG, cfg);
   }
 
@@ -68,7 +96,7 @@ class Sensor {
     });
   }
 
-  getConfig() {
+  getConfig_raw() {
     return this._bus.read(registers.CONFIG, 2).then(buffer => {
       // console.log('config read', buffer);
 
@@ -87,6 +115,14 @@ class Sensor {
         sadc: sadc,
         mode: mode
       };
+    });
+  }
+
+  getConfig() {
+    return this.getConfig_raw().then(config => {
+      return {
+        brng: config.brng === 1 ? 32 : 16,
+;
     });
   }
 
@@ -143,7 +179,7 @@ class Sensor {
 
   getPower_raw() {
     return this._bus.read(registers.POWER, 2).then(buffer => {
-      //console.log(buffer);
+      console.log('power', buffer);
       return buffer.readInt16BE();
     });
   }
@@ -156,7 +192,7 @@ class Sensor {
 
   getCurrent_raw() {
     return this._bus.read(registers.CURRENT, 2).then(buffer => {
-      console.log(buffer);
+      //console.log('current', buffer);
       return buffer.readUInt16BE();
     });
   }
