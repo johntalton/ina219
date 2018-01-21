@@ -16,15 +16,25 @@ Repler.addCommand({
 Repler.addCommand({
   name: 'config',
   valid: state => state.sensor !== undefined,
-  callback: state => state.sensor.getConfig().then(config => config).then(console.log)
+  callback: state => {
+    state.sensor.getConfig().then(config => config).then(console.log)
+  }
 });
 
 Repler.addCommand({
   name: 'calibration',
   valid: state => state.sensor !== undefined,
-  callback: state => state.sensor.getCalibration().then(cal => cal).then(console.log)
+  callback: state => {
+    state.sensor.getCalibration().then(cal => cal).then(console.log)
+  }
 });
 
+
+Repler.addCommand({
+  name: 'calibrate',
+  valid: state => state.sensor !== undefined,
+  callback: state => state.sensor.setCalibration()
+});
 
 
 Repler.addCommand({
