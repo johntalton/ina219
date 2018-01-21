@@ -86,6 +86,11 @@ function makeMode(triggered, shunt, bus) {
   if(!shunt && !bus) { throw Error('shunt, bus or both must be enab led for triggered mode'); }
 }
 
+function split16(value16bit) {
+  return [(value16bit >> 8) & 0xFF, value16bit & 0xFF];
+}
+
+
 /**
  *
  **/
@@ -97,7 +102,7 @@ class Sensor {
 
   reset() {
     const cfg = (1 << offsets.RESET) & masks.CFG_RESET;
-    return this._bus.write(registers.CONFIG, [(cfg >> 8) & 0xFF, 0x00]);
+    return this._bus.write(registers.CONFIG, split16(cfg));
   }
 
   setConfigCalibration(brng, pg, sadc, badc, mode) {
@@ -111,16 +116,10 @@ class Sensor {
 	cfg |= (badc << offsets.BADC) & masks.CFG_BADC;
         cfg |= mode & masks.CFG_MODE;
 
-
 	const cal = 10240;
 
-        const calbuf = new Array(2);
-        calbuf[0] = (cal >> 8) & 0xFF;
-        calbuf[1] = (cal) & 0xFF;
-
-        const cfgbuf = new Array(2);
-        cfgbuf[0] = (cfg >> 8) & 0xFF;
-        cfgbuf[1] = (cfg) & 0xFF;
+        const calbuf = split16(cal);
+        const cfgbuf = split16(cfg);
 
 	return this._bus.write(registers.CALIBRATION, calbuf)
 		.then(this._bus.write(registers.CONFIG, cfgbuf));
@@ -140,16 +139,12 @@ class Sensor {
 
   // shorthand
   powerdown() {
-    return this.getConfig().then(cfg => {
-	return this.setConfigCalibration(cfg.brng, cfg.pg, cfg.sadc, cfg.badc, modes.POWERDOWN);
-    });
+    return this.setConfigCalibration(brng.BUS_32, pg.GAIN_8, adc.ADC_1_SAMPLE, adc.ADC_1_SAMPLE, modes.POWERDOWN);
   }
 
   // shorthand
   disableADC() {
-    return this.getConfig().then(cfg => {
-	return this.setConfigCalibration(cfg.brng, cfg.pg, cfg.sadc, cfg.badc, modes.DISABLEDADC);
-    });
+    return this.setConfigCalibration(brng.BUS_32, pg.GAIN_8, adc.ADC_1_SAMPLE, adc.ADC_1_SAMPLE, modes.DISABLEDADC);
   }
 
   getConfig() {
@@ -174,82 +169,74 @@ class Sensor {
     });
   }
 
+  setCalibration(currentLSB_A) {
+    const  cal = Math.truncate(0.04096 / (currentLSB_A * this._rshunt_ohm));
+    const calbuf = split16(cal);
+    return this._bus.write(registers.CALIBRATION, calbuf);
+  }
+
+  // shorthand
+  setCalibrationFromMaxExpected(maxExpectedCurrent_A) {
+    const lsb = maxExpectedCurrent_A / Math.pow(2, 15);
+    return this.setCalibration(lsb);
+  }
+
   getCalibration() {
     return this._bus.read(registers.CALIBRATION, 2).then(buffer => {
       return buffer.readInt16BE();
     });
   }
 
-  getShuntVoltage_raw() {
+  getShuntVoltage() {
     //console.log('shunt voltage raw');
     return this._bus.read(registers.SHUNT, 2).then(buffer => {
       //console.log('buffer', buffer);
-      return buffer.readInt16BE();
+      const raw = buffer.readInt16BE();
+      return {
+        raw: raw,
+        mV: raw * 0.01 // 10 uV scale
+      };
     });
   }
 
-  getShuntVoltage_mV() {
-    return this.getShuntVoltage_raw().then(raw => {
-      return raw * 0.01;
-    });
-  }
-
-  getBusVoltage_raw() {
+  getBusVoltage() {
     return this._bus.read(registers.BUS, 2).then(buffer => {
       const raw = buffer.readUInt16BE();
       const ovf = (raw & 0x0001) === 0x0001;
       const cnvr = (raw & 0x0002) === 0x0002;
-
-      //console.log('ovf', ovf, 'cnvr', cnvr);
-      if(!cnvr) {
-         console.log('bus voltage convertion not ready');
-         return undefined;
-      }
-      if(ovf) {
-        console.log('bus voltage math overflow');
-        return undefined;
-      }
-
-      const rawvalue = (raw >> 3) * 4;
-
-      //console.log('bus', buffer, 'raw', raw, 'shift',  raw >> 3);
-
-      return rawvalue;
+      const value = (raw >> 3); // shift for status register
+      return {
+        ready: cnvr,
+        overflow: ovf,
+        raw: value,
+        mV: value * 4, // 4 mV scale
+        V: value * 4 * 0.001
+      };
     });
   }
 
-  getBusVoltage_V() {
-    return this.getBusVoltage_raw().then(raw => {
-      return raw * 0.001;
-    });
-  }
-
-  getPower_raw() {
+  getPower() {
     return this._bus.read(registers.POWER, 2).then(buffer => {
-      console.log('power', buffer);
-      return buffer.readInt16BE();
+      //console.log('power', buffer);
+      const raw = buffer.readInt16BE();
+      return {
+        raw: raw,
+        mW: raw * 2
+      };
     });
   }
 
-  getPower_mW() {
-    return this.getPower_raw().then(raw => {
-      return raw * 2;
-    });
-  }
-
-  getCurrent_raw() {
+  getCurrent() {
+    // todo assert calibration
     return this._bus.read(registers.CURRENT, 2).then(buffer => {
       //console.log('current', buffer);
-      return buffer.readUInt16BE();
+      const raw = buffer.readUInt16BE();
+      return {
+        raw: raw,
+        mA: raw / 25.0
+      };
     });
   }
-
-  getCurrent_mA() {
-    return this.getCurrent_raw().then(raw => {
-      return raw / 25.0;
-    });
-  }
-
 }
 
 module.exports = {

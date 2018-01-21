@@ -1,5 +1,6 @@
 const rasbus = require('rasbus');
-const ina219 = require('./src/ina219');
+const ina219lib = require('./src/ina219');
+const ina219 = ina219lib.ina219;
 
 function init() {
   // console.log('foo', ina219);
@@ -12,10 +13,10 @@ function init() {
         sensor.getConfig(),
         sensor.getCalibration(),
 
-        sensor.getShuntVoltage_mV(),
-        sensor.getBusVoltage_V(),
-        sensor.getPower_mW(),
-        sensor.getCurrent_mA()
+        sensor.getShuntVoltage(),
+        sensor.getBusVoltage(),
+        sensor.getPower(),
+        sensor.getCurrent()
       ]).then(results => {
         return {
           config: results[0],

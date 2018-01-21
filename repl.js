@@ -7,7 +7,7 @@ const Misc = require('./repl-misc.js');
 Repler.addCommand({
   name: 'init',
   completer: undefined,
-  valid: (state) => true,
+  valid: (state) => state.sensor === undefined,
   callback: function(state) {
     return rasbus.i2c.init(1, 0x40).then(bus => {
       return ina219.sensor(bus).then(sensor => { state.sensor = sensor });
@@ -25,32 +25,32 @@ Repler.addCommand({
   name: 'calibration',
   valid: state => state.sensor !== undefined,
   callback: state => {
-    state.sensor.getCalibration().then(cal => cal).then(console.log)
+    return state.sensor.getCalibration().then(cal => cal).then(console.log)
   }
 });
 
 Repler.addCommand({
   name: 'shunt',
   valid: state => state.sensor !== undefined,
-  callback: state => state.sensor.getShuntVoltage_mV().then(mV => 'shunt voltage (mV) ' + mV).then(console.log)
+  callback: state => state.sensor.getShuntVoltage().then(shunt => 'shunt voltage (mV) ' + shunt.mV).then(console.log)
 });
 
 Repler.addCommand({
   name: 'bus',
   valid: state => state.sensor !== undefined,
-  callback: state => state.sensor.getBusVoltage_V().then(V => 'bus voltage (V) ' + V).then(console.log)
+  callback: state => state.sensor.getBusVoltage().then(bus => 'bus ' + bus).then(console.log)
 });
 
 Repler.addCommand({
   name: 'power',
   valid: state => state.sensor !== undefined,
-  callback: state => state.sensor.getPower_mW().then(mW => 'power (mW) ' + mW).then(console.log)
+  callback: state => state.sensor.getPower().then(power => 'power (mW) ' + power.mW).then(console.log)
 });
 
 Repler.addCommand({
   name: 'current',
   valid: state => state.sensor !== undefined,
-  callback: state => state.sensor.getCurrent_mA().then(mA => 'current (mA) ' + mA).then(console.log)
+  callback: state => state.sensor.getCurrent().then(current => 'current (mA) ' + current.mA).then(console.log)
 });
 
 Repler.addCommand({
@@ -58,15 +58,19 @@ Repler.addCommand({
   valid: state => state.sensor !== undefined,
   callback: state => {
     return Promise.all([
-      state.sensor.getShuntVoltage_mV(),
-      state.sensor.getBusVoltage_V(),
-      state.sensor.getPower_mW(),
-      state.sensor.getCurrent_mA()
-    ]).then(([shunt_mV, bus_V, power_mW, current_mA]) => {
-	return 'shunt (mV) ' + shunt_mV + '\n' +
-               'bus (V) ' + bus_V + '\n' +
-               'power (mW) ' + power_mW + '\n' +
-               'current (mA) ' + current_mA;
+      state.sensor.getShuntVoltage(),
+      state.sensor.getBusVoltage(),
+      state.sensor.getPower(),
+      state.sensor.getCurrent()
+    ]).then(([shunt, bus, power, current]) => {
+        // bus.ready     all expected calc above bus
+        // bus.overflow  invalid current and power potentialy (not bus overflow?)
+	return 'shunt:      ' + shunt.mV + '\n' +
+               'bus:        ' + bus.V + '\n' +
+               '  ready:    ' + (bus.ready ? 'true' : 'false') + '\n' +
+               '  overflow: ' + (bus.overflow ? 'true' : 'false') + '\n' +
+               'current:    ' + current.mA + '\n' +
+               'power       ' + power.mW;
     }).then(console.log);
   }
 });
