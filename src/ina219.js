@@ -27,6 +27,9 @@ const masks = {
 	CFG_BADC:  0x0780, // only place its bus then shunt everwhere else is shunt then bus
 	CFG_SADC:  0x0078,
 	CFG_MODE:  0x0007,
+
+	BUS_OVF:  0x0001,
+	BUS_CNVR: 0x0002
 };
 
 const offsets = {
@@ -90,6 +93,16 @@ function split16(value16bit) {
   return [(value16bit >> 8) & 0xFF, value16bit & 0xFF];
 }
 
+class Calibration {
+  static fromCurrentLSB_A(currentLSB_A, rshunt_ohm) {
+    return Math.truncate(0.04096 / (currentLSB_A * rshunt_ohm));
+  }
+
+  static fromMax_A(maxExpectedCurrent_A) {
+    const lsb = maxExpectedCurrent_A / Math.pow(2, 15);
+    return Calibration.fromCurrentLSB_A(lsb);
+  }
+}
 
 /**
  *
@@ -105,52 +118,49 @@ class Sensor {
     return this._bus.write(registers.CONFIG, split16(cfg));
   }
 
-  setConfigCalibration(brng, pg, sadc, badc, mode) {
-	let cfg = 0;
+  setCalibrationConfig(calibration, brng, pg, sadc, badc, mode) {
+    return this.setCalibration(calibration)
+      .then(this.setConfig(brng, pg, sadc, badc, mode));
+  }
 
+  setConfig(brng, pg, sadc, badc, mode) {
         // todo validate params
 
+	let cfg = 0;
 	cfg |= (brng << offsets.BRNG) & masks.CFG_BRNG;
 	cfg |= (pg << offsets.PG) & masks.CFG_PG;
 	cfg |= (sadc << offsets.SADC) & masks.CFG_SADC;
 	cfg |= (badc << offsets.BADC) & masks.CFG_BADC;
         cfg |= mode & masks.CFG_MODE;
 
-	const cal = 10240;
-
-        const calbuf = split16(cal);
         const cfgbuf = split16(cfg);
-
-	return this._bus.write(registers.CALIBRATION, calbuf)
-		.then(this._bus.write(registers.CONFIG, cfgbuf));
+	return this._bus.write(registers.CONFIG, cfgbuf);
   }
 
   // shorthand
-  trigger(brng, pg, sadc, badc, shunt, bus) {
+  trigger(calibration, brng, pg, sadc, badc, shunt, bus) {
     const mode = makeMode(true, shunt, bus);
-    return this.setConfigCalibration(brng, pg, sadc, badc, mode);
+    return this.setCalibrationConfig(calibration, brng, pg, sadc, badc, mode);
   }
 
   // shorthand
-  continuous(brng, pg, sadc, badc, shunt, bus) {
+  continuous(calibration, brng, pg, sadc, badc, shunt, bus) {
     const mode = makeMode(false, shunt, bus);
-    return this.setConfigCalibration(brng, pg, sadc, badc, mode);
+    return this.setCalibrationConfig(calibration, brng, pg, sadc, badc, mode);
   }
 
   // shorthand
   powerdown() {
-    return this.setConfigCalibration(brng.BUS_32, pg.GAIN_8, adc.ADC_1_SAMPLE, adc.ADC_1_SAMPLE, modes.POWERDOWN);
+    return this.setConfig(brng.BUS_32, pg.GAIN_8, adc.ADC_1_SAMPLE, adc.ADC_1_SAMPLE, modes.POWERDOWN);
   }
 
   // shorthand
   disableADC() {
-    return this.setConfigCalibration(brng.BUS_32, pg.GAIN_8, adc.ADC_1_SAMPLE, adc.ADC_1_SAMPLE, modes.DISABLEDADC);
+    return this.setConfig(brng.BUS_32, pg.GAIN_8, adc.ADC_1_SAMPLE, adc.ADC_1_SAMPLE, modes.DISABLEDADC);
   }
 
   getConfig() {
     return this._bus.read(registers.CONFIG, 2).then(buffer => {
-      //console.log('config read', buffer);
-
       const cfg = buffer.readUInt16BE();
 
       const brng = (cfg & masks.CFG_BRNG) >> offsets.BRNG;
@@ -169,28 +179,28 @@ class Sensor {
     });
   }
 
-  setCalibration(currentLSB_A) {
-    const  cal = Math.truncate(0.04096 / (currentLSB_A * this._rshunt_ohm));
+  setCalibration(calibration) {
+    if(calibration & 0b1 === 0b1) { throw Error('calibration LSB set (they say its not possible'); }
     const calbuf = split16(cal);
     return this._bus.write(registers.CALIBRATION, calbuf);
   }
 
-  // shorthand
-  setCalibrationFromMaxExpected(maxExpectedCurrent_A) {
-    const lsb = maxExpectedCurrent_A / Math.pow(2, 15);
-    return this.setCalibration(lsb);
-  }
-
   getCalibration() {
     return this._bus.read(registers.CALIBRATION, 2).then(buffer => {
-      return buffer.readInt16BE();
+      const raw = buffer.readInt16BE();
+      return {
+        raw: raw
+      };
     });
   }
 
+  // shorthand
+  getConfigCalibration() {
+    return this.getConfig().then(cfg => { return { config: cfg, calibration: this.getCalibration() }; });
+  }
+
   getShuntVoltage() {
-    //console.log('shunt voltage raw');
     return this._bus.read(registers.SHUNT, 2).then(buffer => {
-      //console.log('buffer', buffer);
       const raw = buffer.readInt16BE();
       return {
         raw: raw,
@@ -202,8 +212,8 @@ class Sensor {
   getBusVoltage() {
     return this._bus.read(registers.BUS, 2).then(buffer => {
       const raw = buffer.readUInt16BE();
-      const ovf = (raw & 0x0001) === 0x0001;
-      const cnvr = (raw & 0x0002) === 0x0002;
+      const ovf = (raw & masks.BUS_OVF) === masks.BUS_OVF;
+      const cnvr = (raw & masks.BUS_CNVR) === masks.BUS_CNVR;
       const value = (raw >> 3); // shift for status register
       return {
         ready: cnvr,
@@ -215,25 +225,41 @@ class Sensor {
     });
   }
 
-  getPower() {
+  getCurrent(currentLSB_A) {
+    // todo assert calibration
+    return this._bus.read(registers.CURRENT, 2).then(buffer => {
+      const raw = buffer.readUInt16BE();
+      return {
+        raw: raw,
+        mA: raw * currentLSB_A
+      };
+    });
+  }
+
+  getPower(powerLSB_mW) {
+    // todo assert calibration
     return this._bus.read(registers.POWER, 2).then(buffer => {
       //console.log('power', buffer);
       const raw = buffer.readInt16BE();
       return {
         raw: raw,
-        mW: raw * 2
+        mW: raw * powerLSB_mW
       };
     });
   }
 
-  getCurrent() {
-    // todo assert calibration
-    return this._bus.read(registers.CURRENT, 2).then(buffer => {
-      //console.log('current', buffer);
-      const raw = buffer.readUInt16BE();
+  getAll() {
+    return Promise.all([
+      this.getShuntVoltage(),
+      this.getBusVoltage(),
+      this.getCurrent(),
+      this.getPower()
+    ]).then(([shunt, bus, current, power]) => {
       return {
-        raw: raw,
-        mA: raw / 25.0
+        shunt: shunt,
+        bus: bus,
+        current: current,
+        power: power
       };
     });
   }
@@ -241,6 +267,8 @@ class Sensor {
 
 module.exports = {
 	ina219: ina219,
+	calibration: Calibration,
+
 	brng: brng,
 	pg: pg,
 	adc: adc,

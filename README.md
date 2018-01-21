@@ -14,9 +14,6 @@ it is up to you to respect call timing of the chip. (todo add misc method to aid
 
 any events that cause unexpected reset of the calibration register should be validate on the caller side.
 
-## Ready State
-
-Disabling the ADC and power-dowm nodes trigger the ready flag.
 
 ## Power-down and Disabled Profiles
 

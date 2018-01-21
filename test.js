@@ -10,22 +10,10 @@ function init() {
       //console.log(sensor);
 
       return Promise.all([
-        sensor.getConfig(),
-        sensor.getCalibration(),
-
-        sensor.getShuntVoltage(),
-        sensor.getBusVoltage(),
-        sensor.getPower(),
-        sensor.getCurrent()
+        sensor.getConfigCalibration(),
+        sensor.getAll()
       ]).then(results => {
-        return {
-          config: results[0],
-          calibration: results[1],
-          shunt: results[2],
-          bus: results[3],
-          power: results[4],
-          current: results[5]
-        }
+        return results;
       }).then(console.log);
     });
   });
