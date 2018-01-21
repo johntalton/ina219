@@ -1,6 +1,8 @@
 const rasbus = require('rasbus');
 const Repler = require('./repler.js');
-const ina219 = require('./src/ina219.js');
+const ina219lib = require('./src/ina219.js');
+const ina219 = ina219lib.ina219;
+const Misc = require('./repl-misc.js');
 
 Repler.addCommand({
   name: 'init',
@@ -16,9 +18,7 @@ Repler.addCommand({
 Repler.addCommand({
   name: 'config',
   valid: state => state.sensor !== undefined,
-  callback: state => {
-    state.sensor.getConfig().then(config => config).then(console.log)
-  }
+  callback: state => state.sensor.getConfig().then(Misc.configString).then(console.log)
 });
 
 Repler.addCommand({
@@ -28,14 +28,6 @@ Repler.addCommand({
     state.sensor.getCalibration().then(cal => cal).then(console.log)
   }
 });
-
-
-Repler.addCommand({
-  name: 'calibrate',
-  valid: state => state.sensor !== undefined,
-  callback: state => state.sensor.setCalibration()
-});
-
 
 Repler.addCommand({
   name: 'shunt',
@@ -92,9 +84,40 @@ Repler.addCommand({
 });
 
 Repler.addCommand({
-  name: 'disableadc',
+  name: 'disable',
   valid: state => state.sensor !== undefined,
   callback: state => state.sensor.disableADC()
+});
+
+Repler.addCommand({
+  name: 'trigger',
+  valid: state => state.sensor !== undefined,
+  completer: line => {
+    const parts = line.trim().split(' ').slice(1);
+    const validparts = parts.map((part, idx) => Misc.comp(part, Misc.trigger_config, idx));
+
+    return [''];
+  },
+  callback: function(state) {
+    const parts = state.line.trim().split(' ').slice(1);
+    if(parts.length !== Misc.trigger_config.length) { throw new Error('invalid params length'); }
+    const params = parts.map((part, idx) => Misc.call(part, Misc.trigger_config, idx));
+
+    return state.sensor.trigger(...params)
+  }
+});
+
+Repler.addCommand({
+  name: 'continuous',
+  valid: state => state.sensor !== undefined,
+  
+  callback: function(state) {
+    const parts = state.line.trim().split(' ').slice(1);
+    if(parts.length !== Misc.trigger_config.length) { throw new Error('invalid params length'); }
+    const params = parts.map((part, idx) => Misc.call(part, Misc.trigger_config, idx));
+
+    return state.sensor.continuous(...params);
+  }
 });
 
 

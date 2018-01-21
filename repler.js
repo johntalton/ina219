@@ -86,7 +86,7 @@ function commandHandler(line) {
   }
 
   state.line = line;
-  item.callback(state).then(exitcode => {
+  Promise.resolve(state).then(item.callback).then(exitcode => {
     if(exitcode === -1){ console.log('end of line.'); return; }
     prompt();
   }).catch(e => {

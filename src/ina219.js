@@ -23,8 +23,8 @@ const registers = {
 const masks = {
 	CFG_RESET: 0x8000,
 	CFG_BRNG:  0x2000,
-	CFG_PGA:   0x1800,
-	CFG_BADC:  0x0780,
+	CFG_PG:    0x1800,
+	CFG_BADC:  0x0780, // only place its bus then shunt everwhere else is shunt then bus
 	CFG_SADC:  0x0078,
 	CFG_MODE:  0x0007,
 };
@@ -39,15 +39,15 @@ const offsets = {
 };
 
 const brng = {
-	BUS_16: 0b0,
-	BUS_32: 0b1
+	BUS_16: 0b0, // 16 V
+	BUS_32: 0b1  // 32 V (default)
 };
 
-const pg = { // pre-shifted pg values
-	GAIN_1_40:  0b00,
-	GAIN_2_80:  0b01,
-	GAIN_4_160: 0b10,
-	GAIN_8_320: 0b11 // default
+const pg = {
+	GAIN_1: 0b00, // +/- 40 mV
+	GAIN_2: 0b01, // +/- 80 mV
+	GAIN_4: 0b10, // +/- 160 mV
+	GAIN_8: 0b11  // +/- 320 mV (default)
 };
 
 const adc = {
@@ -79,12 +79,11 @@ const modes = {
 };
 
 function makeMode(triggered, shunt, bus) {
-    const mode = shunt ? bus ? modes.TRIGGERED_SHUNT_BUS : modes.TRIGGERED_SHUNT : bus ? modes.TRIGGERED_BUS : null;
+  if(shunt && bus) { return triggered ? modes.TRIGGERED_SHUNT_BUS : modes.CONTINUOUS_SHUNT_BUS; }
+  if(shunt && !bus) { return triggered ? modes.TRIGGERED_SHUNT : modes.CONTINUOUS_SHUNT; }
+  if(!shunt && bus) { return triggered ? modes.TRIGGERED_BUS : modes.CONTINUOUS_BUS; }
 
-  if(shunt && bus) { }
-  if(shunt && !bus) {}
-  if(!shunt && bus) {}
-  if(!shunt && !bus)
+  if(!shunt && !bus) { throw Error('shunt, bus or both must be enab led for triggered mode'); }
 }
 
 /**
@@ -97,83 +96,80 @@ class Sensor {
   }
 
   reset() {
-    const cfg = (1 << offsets.RESET) & mask.CFG_RESET;
-    return this._bus.write(registers.CONFIG, cfg);
+    const cfg = (1 << offsets.RESET) & masks.CFG_RESET;
+    return this._bus.write(registers.CONFIG, [(cfg >> 8) & 0xFF, 0x00]);
   }
 
-  setConfigCalibration(brng, pg, badc, sadc, mode) {
+  setConfigCalibration(brng, pg, sadc, badc, mode) {
 	let cfg = 0;
 
-	cfg |= (brng << offsets.BRNG) & mask.CFG_BRNG;
-	cfg |= (pga << offsets.PG) & mask.CFG_PG;
-	cfg |= (badc << offsets.BADC) & mask.CFG_BADC;
-	cfg |= (sadc << offsets.SADC) & mask.CFG_SADC;
-        cfg |= mode & mask.CFG_MODE;
+        // todo validate params
+
+	cfg |= (brng << offsets.BRNG) & masks.CFG_BRNG;
+	cfg |= (pg << offsets.PG) & masks.CFG_PG;
+	cfg |= (sadc << offsets.SADC) & masks.CFG_SADC;
+	cfg |= (badc << offsets.BADC) & masks.CFG_BADC;
+        cfg |= mode & masks.CFG_MODE;
 
 
 	const cal = 10240;
 
-	return this._bus.write(registers.CONFIG, cfg)
-		.then(() => this._bus.write(registers.CALIBRATION, cal));
+        const calbuf = new Array(2);
+        calbuf[0] = (cal >> 8) & 0xFF;
+        calbuf[1] = (cal) & 0xFF;
+
+        const cfgbuf = new Array(2);
+        cfgbuf[0] = (cfg >> 8) & 0xFF;
+        cfgbuf[1] = (cfg) & 0xFF;
+
+	return this._bus.write(registers.CALIBRATION, calbuf)
+		.then(this._bus.write(registers.CONFIG, cfgbuf));
   }
 
   // shorthand
-  trigger(brng, pg, badc, sadc, shunt, bus) {
+  trigger(brng, pg, sadc, badc, shunt, bus) {
     const mode = makeMode(true, shunt, bus);
-    if(mode === null) { throw Error('shunt, bus or both must be enab led for triggered mode'); }
-    return this.setConfig(brng, pg, badc, sadc, mode);
+    return this.setConfigCalibration(brng, pg, sadc, badc, mode);
   }
 
   // shorthand
-  setContinuous(brng, pg, badc, sadc, shunt, bus) {
+  continuous(brng, pg, sadc, badc, shunt, bus) {
     const mode = makeMode(false, shunt, bus);
-    return this.setConfig(brng, pg, badc, sadc, mode);
+    return this.setConfigCalibration(brng, pg, sadc, badc, mode);
   }
 
   // shorthand
   powerdown() {
     return this.getConfig().then(cfg => {
-	return this.setConfig(cfg.brng, cfg.pga, cfg.badc, cfg.sadc, modes.POWERDOWN);
+	return this.setConfigCalibration(cfg.brng, cfg.pg, cfg.sadc, cfg.badc, modes.POWERDOWN);
     });
   }
 
   // shorthand
-  disabledADC() {
+  disableADC() {
     return this.getConfig().then(cfg => {
-	return this.setConfig(cfg.brng, cfg.pga, cfg.badc, cfg.sadc, modes.DISABLEDADC);
+	return this.setConfigCalibration(cfg.brng, cfg.pg, cfg.sadc, cfg.badc, modes.DISABLEDADC);
     });
   }
 
-  getConfig_raw() {
+  getConfig() {
     return this._bus.read(registers.CONFIG, 2).then(buffer => {
-      // console.log('config read', buffer);
+      //console.log('config read', buffer);
 
       const cfg = buffer.readUInt16BE();
 
       const brng = (cfg & masks.CFG_BRNG) >> offsets.BRNG;
       const pg = (cfg & masks.CFG_PG) >> offsets.PG;
-      const badc = (cfg & masks.CFG_BADC) >> offsets.BADC;
       const sadc = (cfg & masks.CFG_SADC) >> offsets.SADC;
+      const badc = (cfg & masks.CFG_BADC) >> offsets.BADC;
       const mode = (cfg & masks.CFG_MODE);
 
       return {
         brng: brng,
         pg: pg,
-        badc: badc,
         sadc: sadc,
+        badc: badc,
         mode: mode
-      };
-    });
-  }
-
-  getConfig() {
-    return this.getConfig_raw().then(config => {
-      return {
-        brng: config.brng === 1 ? 32 : 16,
-        pg: config.pg,
-        badc: config.badc,
-        sadc: config.sadc,
-        mode: config.mode
       };
     });
   }
@@ -181,6 +177,20 @@ class Sensor {
   getCalibration() {
     return this._bus.read(registers.CALIBRATION, 2).then(buffer => {
       return buffer.readInt16BE();
+    });
+  }
+
+  getShuntVoltage_raw() {
+    //console.log('shunt voltage raw');
+    return this._bus.read(registers.SHUNT, 2).then(buffer => {
+      //console.log('buffer', buffer);
+      return buffer.readInt16BE();
+    });
+  }
+
+  getShuntVoltage_mV() {
+    return this.getShuntVoltage_raw().then(raw => {
+      return raw * 0.01;
     });
   }
 
@@ -214,20 +224,6 @@ class Sensor {
     });
   }
 
-  getShuntVoltage_raw() {
-    //console.log('shunt voltage raw');
-    return this._bus.read(registers.SHUNT, 2).then(buffer => {
-      //console.log('buffer', buffer);
-      return buffer.readInt16BE();
-    });
-  }
-
-  getShuntVoltage_mV() {
-    return this.getShuntVoltage_raw().then(raw => {
-      return raw * 0.01;
-    });
-  }
-
   getPower_raw() {
     return this._bus.read(registers.POWER, 2).then(buffer => {
       console.log('power', buffer);
@@ -256,4 +252,10 @@ class Sensor {
 
 }
 
-module.exports = ina219;
+module.exports = {
+	ina219: ina219,
+	brng: brng,
+	pg: pg,
+	adc: adc,
+	modes: modes
+};
