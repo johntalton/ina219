@@ -3,6 +3,7 @@ const Repler = require('./repler.js');
 const ina219lib = require('./src/ina219.js');
 const ina219 = ina219lib.ina219;
 const Misc = require('./repl-misc.js');
+const Calibration = ina219lib.calibration;
 
 Repler.addCommand({
   name: 'init',
@@ -29,6 +30,7 @@ Repler.addCommand({
   }
 });
 
+/**
 Repler.addCommand({
   name: 'shunt',
   valid: state => state.sensor !== undefined,
@@ -52,25 +54,28 @@ Repler.addCommand({
   valid: state => state.sensor !== undefined,
   callback: state => state.sensor.getCurrent().then(current => 'current (mA) ' + current.mA).then(console.log)
 });
+**/
 
 Repler.addCommand({
   name: 'measurment',
   valid: state => state.sensor !== undefined,
   callback: state => {
     return Promise.all([
-      state.sensor.getShuntVoltage(),
-      state.sensor.getBusVoltage(),
-      state.sensor.getPower(),
-      state.sensor.getCurrent()
-    ]).then(([shunt, bus, power, current]) => {
+      //state.sensor.getShuntVoltage(),
+      //state.sensor.getBusVoltage(),
+      state.sensor.getLoadVoltage(),
+      state.sensor.getCurrent(state.currentLSB_A),
+      state.sensor.getPower(Calibration.powerLSB_mW(state.currentLSB_A))
+    ]).then(([load, current, power]) => {
         // bus.ready     all expected calc above bus
         // bus.overflow  invalid current and power potentialy (not bus overflow?)
-	return 'shunt:      ' + shunt.mV + '\n' +
-               'bus:        ' + bus.V + '\n' +
-               '  ready:    ' + (bus.ready ? 'true' : 'false') + '\n' +
-               '  overflow: ' + (bus.overflow ? 'true' : 'false') + '\n' +
-               'current:    ' + current.mA + '\n' +
-               'power       ' + power.mW;
+	return 'shunt:      ' + load.shunt.mV + ' mV' + '\n' +
+               'bus:        ' + load.bus.V + ' V' + '\n' +
+               'load:       ' + load.V + ' V' + '\n' +
+               '  ready:    ' + (load.bus.ready ? 'true' : 'false') + '\n' +
+               '  overflow: ' + (load.bus.overflow ? 'true' : 'false') + '\n' +
+               'current:    ' + current.mA + ' mA' +  ' (' + (state.currentLSB_A * 1000.0)  + ' mA/Bit)' + '\n' +
+               'power       ' + power.mW + ' mW' + ' (' + Calibration.powerLSB_mW(state.currentLSB_A) + ' mW/bit)';
     }).then(console.log);
   }
 });
@@ -84,7 +89,7 @@ Repler.addCommand({
 Repler.addCommand({
   name: 'reset',
   valid: state => state.sensor !== undefined,
-  callback: state => state.sensor.reset()
+  callback: state => { state.currentLSB_A = undefined; return state.sensor.reset(); }
 });
 
 Repler.addCommand({
@@ -107,7 +112,10 @@ Repler.addCommand({
     if(parts.length !== Misc.trigger_config.length) { throw new Error('invalid params length'); }
     const params = parts.map((part, idx) => Misc.call(part, Misc.trigger_config, idx));
 
-    return state.sensor.trigger(...params)
+    state.currentLSB_A = Calibration.lsbFromExact(Calibration.absoluteMax_A_alt(12, 8, 0.1));
+    const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, 0.1);
+
+    return state.sensor.trigger(calibration, ...params);
   }
 });
 
@@ -120,7 +128,10 @@ Repler.addCommand({
     if(parts.length !== Misc.trigger_config.length) { throw new Error('invalid params length'); }
     const params = parts.map((part, idx) => Misc.call(part, Misc.trigger_config, idx));
 
-    return state.sensor.continuous(...params);
+    state.currentLSB_A = 0.0000400; //Calibration.lsbFromExact(Calibration.absoluteMax_A_alt(12, 8, 0.1));
+    const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, 0.1);
+
+    return state.sensor.continuous(calibration, ...params);
   }
 });
 

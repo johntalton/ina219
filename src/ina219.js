@@ -94,13 +94,53 @@ function split16(value16bit) {
 }
 
 class Calibration {
+  // equation 1 from spec
   static fromCurrentLSB_A(currentLSB_A, rshunt_ohm) {
-    return Math.truncate(0.04096 / (currentLSB_A * rshunt_ohm));
+    return Math.trunc(0.04096 / (currentLSB_A * rshunt_ohm));
   }
 
-  static fromMax_A(maxExpectedCurrent_A) {
-    const lsb = maxExpectedCurrent_A / Math.pow(2, 15);
-    return Calibration.fromCurrentLSB_A(lsb);
+  static lsbFromMax_A(maxExpectedCurrent_A) {
+    return maxExpectedCurrent_A / Math.pow(2, 15);
+  }
+
+  // equation 3 from spec
+  static powerLSB_mW(currentLSB_A) {
+    return (currentLSB_A * 1000) * 20;
+  }
+
+  static absoluteMax_A_alt(bus, gain, rshunt_ohm) {
+    const gain_mV = gain * 0.04; // mV steps
+    const absMax = gain_mV / rshunt_ohm;
+    return absMax;
+  }
+
+  // todo params should be enum value
+  //static absoluteMax_A(bus, gain, rshunt_ohm) {
+  //  return Calibration.absoluteMax_A_alt(bus, );
+  //}
+
+  static lsbScaleForExpected_A(expected_A) {
+    const min = expected_A / Math.pow(2, 15); // 15 bit
+    const max = expected_A / Math.pow(2, 12); // 12 bit
+    return [min, max];
+  }
+
+  // equation 2 from spec
+  static lsbFromExact(exact_A) {
+    return exact_A / Math.pow(2, 15);
+  }
+
+  static lsbMinFromScale(lsbScale) {
+    // const diff = lsbScale[1] - lsbScale[0];
+    return Math.trunc((lsbScale[0]) * 100000) / 100000;
+  }
+
+  static lsbMatchValue() {
+    // the current is 2.1 mA then current register should read 2.1
+  }
+
+  static lsbSnapFromScale(lsbScale) {
+    // for a range of 24 420 we should pick 100
   }
 }
 
@@ -180,8 +220,8 @@ class Sensor {
   }
 
   setCalibration(calibration) {
-    if(calibration & 0b1 === 0b1) { throw Error('calibration LSB set (they say its not possible'); }
-    const calbuf = split16(cal);
+    // if(calibration & 0b1 === 0b1) { throw Error('calibration LSB set (they say its not possible'); }
+    const calbuf = split16(calibration);
     return this._bus.write(registers.CALIBRATION, calbuf);
   }
 
@@ -196,7 +236,11 @@ class Sensor {
 
   // shorthand
   getConfigCalibration() {
-    return this.getConfig().then(cfg => { return { config: cfg, calibration: this.getCalibration() }; });
+    return this.getConfig().then(cfg => {
+      return this.getCalibration().then(cali => {
+        return { config: cfg, calibration: cali };
+      });
+    });
   }
 
   getShuntVoltage() {
@@ -225,13 +269,28 @@ class Sensor {
     });
   }
 
+  // shorthand
+  getLoadVoltage() {
+    return this.getShuntVoltage().then(shunt => {
+      return this.getBusVoltage().then(bus => {
+        const loadV = bus.V + (shunt.mV / 1000.0);
+        return {
+          shunt: shunt,
+          bus: bus,
+          V: loadV
+        };
+      });
+    });
+  }
+
   getCurrent(currentLSB_A) {
     // todo assert calibration
     return this._bus.read(registers.CURRENT, 2).then(buffer => {
       const raw = buffer.readUInt16BE();
       return {
         raw: raw,
-        mA: raw * currentLSB_A
+        A: raw * currentLSB_A,
+        mA: raw * currentLSB_A * 1000.0
       };
     });
   }
@@ -239,7 +298,6 @@ class Sensor {
   getPower(powerLSB_mW) {
     // todo assert calibration
     return this._bus.read(registers.POWER, 2).then(buffer => {
-      //console.log('power', buffer);
       const raw = buffer.readInt16BE();
       return {
         raw: raw,
@@ -248,16 +306,21 @@ class Sensor {
     });
   }
 
-  getAll() {
+  // shorthand
+  getAll(currentLSB_A) {
+    const powerLSB_mW = Calibration.powerLSB_mW(currentLSB_A);
+
     return Promise.all([
-      this.getShuntVoltage(),
-      this.getBusVoltage(),
-      this.getCurrent(),
-      this.getPower()
-    ]).then(([shunt, bus, current, power]) => {
+      //this.getShuntVoltage(),
+      //this.getBusVoltage(),
+      this.getLoadVoltage(),
+      this.getCurrent(currentLSB_A),
+      this.getPower(powerLSB_mW)
+    ]).then(([load, current, power]) => {
       return {
-        shunt: shunt,
-        bus: bus,
+        shunt: load.shunt,
+        bus: load.bus,
+        load: load,
         current: current,
         power: power
       };
