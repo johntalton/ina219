@@ -1,14 +1,6 @@
+"use strict";
 const readline = require('readline');
 
-
-class Repler {
-  static addCommand(cmd) { commands.push(cmd); }
-  static go(state){ prompt(); }
-
-  static addPrompt(pmt) { promptCallbck = pmt; }
-}
-
-module.exports = Repler;
 
 
 let promptCallback = undefined;
@@ -26,12 +18,30 @@ const rl = readline.createInterface({
   completer: completer
 });
 
+
+
+
+class Repler {
+  static addCommand(cmd) { commands.push(cmd); }
+  static go(initstate){
+    //state = { ...state, ...initstate };
+    state = Object.assign(state, initstate);
+    prompt();
+  }
+
+  static addPrompt(pmt) { promptCallback = pmt; }
+}
+
+module.exports = Repler;
+
+
+
 function prompt() {
   const close = '> ';
   let prompt = close;
 
   if(promptCallback !== undefined) {
-    promptCallback(state);
+    prompt = promptCallback(state);
   }
 
   rl.question(prompt, commandHandler);

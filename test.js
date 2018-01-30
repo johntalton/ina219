@@ -8,18 +8,21 @@ const pg = ina219lib.pg;
 const adc = ina219lib.adc;
 const mode = ina219lib.mode;
 
-const currentLSB_A = Calibration.lsbFromMax_A(3.2);
-const calibration = Calibration.fromCurrentLSB_A(currentLSB_A);
+function delay(ms, proxy) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => resolve(proxy), ms);
+  });
+}
+
+const currentLSB_A = Calibration.lsbMin_A(1.0); // select smalles step size
+const calibration = Calibration.fromCurrentLSB_A(currentLSB_A, ina219lib.DEFAULT_RSHUNT_OHMS);
 
 rasbus.i2c.init(1, 0x40).then(bus => {
   return ina219.sensor(bus).then(sensor => {
-    return Promise.all([
-      sensor.reset(),
-      sensor.trigger(calibration, brng.BUS_32, pg.GAIN_8, adc.ADC_12_BIT, adc.ADC_12_BIT, true, true),
-      sensor.getConfigCalibration(),
-      sensor.getAll(currentLSB_A)
-    ]).then(results => results.splice(2)) // drop results from reset/trigger
-      .then(console.log);
+    return sensor.trigger(calibration, brng.BUS_16, pg.GAIN_2, adc.ADC_128_SAMPLES, adc.ADC_128_SAMPLES, true, true)
+      .then(() => sensor.getConfigCalibration().then(console.log))
+      .then(() => delay(50)) // ajust to trigger config
+      .then(() => sensor.getAll(currentLSB_A).then(console.log));
   });
 }).catch(e => {
   console.log('caughterror', e);

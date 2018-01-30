@@ -64,30 +64,34 @@ class Misc {
     lines.push('Mode: ' + Misc.modeString(config.mode));
     return lines.join('\n');
   }
+
+  static stringToPG(pgstr) {
+    switch(pgstr) {
+      case '1': return ina219lib.pg.GAIN_1;
+      case '2': return ina219lib.pg.GAIN_2;
+      case '4': return ina219lib.pg.GAIN_4;
+      case '8': return ina219lib.pg.GAIN_8;
+      default: throw Error('pg conversion error');
+    }
+  }
+
+  static stringToBRNG(brngstr) {
+    if(brngstr === '16') { return ina219lib.brng.BUS_16; }
+    if(brngstr === '32') { return ina219lib.brng.BUS_32; }
+    throw Error('brng conversion error');
+  }
 }
 
 const trigger_config = [
   {
     name: 'brng',
     valids: ['16', '32'],
-    toenum: brng => {
-      if(brng === '16') { return ina219lib.brng.BUS_16; }
-      if(brng === '32') { return ina219lib.brng.BUS_32; }
-      throw Error('brng conversion error');
-    }
+    toenum: Misc.stringToBRNG
   },
   {
     name: 'pg',
     valids: ['1', '2', '4', '8'],
-    toenum: pg => {
-      switch(pg) {
-        case  '1': return ina219lib.pg.GAIN_1;
-        case  '2': return ina219lib.pg.GAIN_2;
-        case  '4': return ina219lib.pg.GAIN_4;
-        case  '8': return ina219lib.pg.GAIN_8;
-        default: throw Error('pg conversion error');
-      }
-    }
+    toenum: Misc.stringToPG
   },
   {
     name: 'sadc',
@@ -166,6 +170,8 @@ function call(value, cfg, idx) {
 
 module.exports = {
   configString: Misc.configString,
+  stringToPG: Misc.stringToPG,
+  stringToBRNG: Misc.stringToBRNG,
 
   trigger_config: trigger_config,
   comp: comp,

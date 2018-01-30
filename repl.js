@@ -1,15 +1,33 @@
+"use strict";
+
 const rasbus = require('rasbus');
 const Repler = require('./repler.js');
 const ina219lib = require('./src/ina219.js');
 const ina219 = ina219lib.ina219;
 const Misc = require('./repl-misc.js');
 const Calibration = ina219lib.calibration;
+const Units = ina219lib.units;
+
+Repler.addPrompt((state) => {
+  if(state.sensor !== undefined) {
+    if(state.currentLSB_A !== undefined) {
+      return 'ina219> ';
+    } else {
+      return 'ina219(*)> '
+    }
+  }
+  return '(uninitialized)> ';
+});
 
 Repler.addCommand({
   name: 'init',
   completer: undefined,
   valid: (state) => state.sensor === undefined,
   callback: function(state) {
+    const parts = state.line.trim().split(' ').slice(1);
+
+
+
     return rasbus.i2c.init(1, 0x40).then(bus => {
       return ina219.sensor(bus).then(sensor => { state.sensor = sensor });
     });
@@ -26,7 +44,13 @@ Repler.addCommand({
   name: 'calibration',
   valid: state => state.sensor !== undefined,
   callback: state => {
-    return state.sensor.getCalibration().then(cal => cal).then(console.log)
+    return state.sensor.getCalibration().then(calibration => {
+      if(state.currentLSB_A === undefined) {
+        console.log('\tsetting current lsb from calibrtion');
+        state.currentLSB_A = Calibration.currentLSBFromCalibration(calibration.raw, state.rshunt_ohms);
+      }
+      console.log('calibration: ' + calibration.raw);
+    })
   }
 });
 
@@ -40,7 +64,7 @@ Repler.addCommand({
 Repler.addCommand({
   name: 'bus',
   valid: state => state.sensor !== undefined,
-  callback: state => state.sensor.getBusVoltage().then(bus => 'bus ' + bus).then(console.log)
+  callback: state => state.sensor.getBusVoltage().then(bus => 'bus ' + bus.V).then(console.log)
 });
 
 Repler.addCommand({
@@ -69,13 +93,17 @@ Repler.addCommand({
     ]).then(([load, current, power]) => {
         // bus.ready     all expected calc above bus
         // bus.overflow  invalid current and power potentialy (not bus overflow?)
+
+        const normal = '\u001b[0m';
+        const red = '\u001b[31m';
+
 	return 'shunt:      ' + load.shunt.mV + ' mV' + '\n' +
                'bus:        ' + load.bus.V + ' V' + '\n' +
                'load:       ' + load.V + ' V' + '\n' +
-               '  ready:    ' + (load.bus.ready ? 'true' : 'false') + '\n' +
-               '  overflow: ' + (load.bus.overflow ? 'true' : 'false') + '\n' +
-               'current:    ' + current.mA + ' mA' +  ' (' + (state.currentLSB_A * 1000.0)  + ' mA/Bit)' + '\n' +
-               'power       ' + power.mW + ' mW' + ' (' + Calibration.powerLSB_mW(state.currentLSB_A) + ' mW/bit)';
+               '  ready:    ' + (load.bus.ready ? 'true' : red + 'false' + normal) + '\n' +
+               '  overflow: ' + (load.bus.overflow ? red + 'true' + normal : 'false') + '\n' +
+               'current:    ' + (isNaN(current.mA) ? '*' : (current.mA + ' mA' +  ' (' + (Units.AtomA(state.currentLSB_A))  + ' mA/Bit)')) + '\n' +
+               'power       ' + (isNaN(power.mW) ? '*' : (power.mW + ' mW' + ' (' + Calibration.powerLSB_mW(state.currentLSB_A) + ' mW/bit)'));
     }).then(console.log);
   }
 });
@@ -112,8 +140,10 @@ Repler.addCommand({
     if(parts.length !== Misc.trigger_config.length) { throw new Error('invalid params length'); }
     const params = parts.map((part, idx) => Misc.call(part, Misc.trigger_config, idx));
 
-    state.currentLSB_A = Calibration.lsbFromExact(Calibration.absoluteMax_A_alt(12, 8, 0.1));
-    const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, 0.1);
+    const [brng, pg, ] = params;
+
+    state.currentLSB_A = Calibration.lsbFromExact(Calibration.absoluteMax_A(brng, pg, state.rshunt_ohms));
+    const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
 
     return state.sensor.trigger(calibration, ...params);
   }
@@ -122,19 +152,52 @@ Repler.addCommand({
 Repler.addCommand({
   name: 'continuous',
   valid: state => state.sensor !== undefined,
-  
+
   callback: function(state) {
     const parts = state.line.trim().split(' ').slice(1);
     if(parts.length !== Misc.trigger_config.length) { throw new Error('invalid params length'); }
     const params = parts.map((part, idx) => Misc.call(part, Misc.trigger_config, idx));
 
-    state.currentLSB_A = 0.0000400; //Calibration.lsbFromExact(Calibration.absoluteMax_A_alt(12, 8, 0.1));
-    const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, 0.1);
+    const [brng, pg, ] = params;
+
+    state.currentLSB_A = Calibration.lsbFromExact(Calibration.absoluteMax_A(brng, pg, state.rshunt_ohms));
+    const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
 
     return state.sensor.continuous(calibration, ...params);
   }
 });
 
+Repler.addCommand({
+  name: 'gain',
+  valid: state => state.sensor !== undefined,
+  callback: function(state) {
+    const parts = state.line.trim().split(' ').slice(1);
+    const pg = Misc.stringToPG(parts[0]);
 
+    return state.sensor.getConfig().then(cfg => {
+      state.currentLSB_A = Calibration.lsbFromExact(Calibration.absoluteMax_A(cfg.brng, pg, state.rshunt_ohms));
+      const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
+      console.log(' gain set values:', state.currentLSB_A, calibration, pg);
+      return state.sensor.setCalibrationConfig(calibration, cfg.brng, pg, cfg.sadc, cfg.badc, cfg.mode);
+    });
+  }
+});
 
-Repler.go();
+Repler.addCommand({
+  name: 'bus',
+  valid: state => state.sensor !== undefined,
+  callback: function(state) {
+    const parts = state.line.trim().split(' ').slice(1);
+    const brng = Misc.stringToBRNG(parts[0]);
+
+    return state.sensor.getConfig().then(cfg => {
+      state.currentLSB_A = Calibration.lsbFromExact(Calibration.absoluteMax_A(brng, cfg.pg, state.rshunt_ohms));
+      const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
+      return state.sensor.setCalibrationConfig(calibration, brng, cfg.pg, cfg.sadc, cfg.badc, cfg.mode);
+    });
+  }
+});
+
+Repler.go({
+  rshunt_ohms: ina219lib.DEFAULT_RSHUNT_OHMS
+});
