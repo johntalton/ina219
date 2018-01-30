@@ -47,7 +47,7 @@ Repler.addCommand({
     return state.sensor.getCalibration().then(calibration => {
       if(state.currentLSB_A === undefined) {
         console.log('\tsetting current lsb from calibrtion');
-        state.currentLSB_A = Calibration.currentLSBFromCalibration(calibration.raw, state.rshunt_ohms);
+        state.currentLSB_A = Calibration.toCurrentLSB(calibration.raw, state.rshunt_ohms);
       }
       console.log('calibration: ' + calibration.raw);
     })
@@ -142,7 +142,7 @@ Repler.addCommand({
 
     const [brng, pg, ] = params;
 
-    state.currentLSB_A = Calibration.lsbFromExact(Calibration.absoluteMax_A(brng, pg, state.rshunt_ohms));
+    state.currentLSB_A = Calibration.lsbMin_A(Calibration.maxPossibleCurrent_A(brng, pg, state.rshunt_ohms));
     const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
 
     return state.sensor.trigger(calibration, ...params);
@@ -160,7 +160,7 @@ Repler.addCommand({
 
     const [brng, pg, ] = params;
 
-    state.currentLSB_A = Calibration.lsbFromExact(Calibration.absoluteMax_A(brng, pg, state.rshunt_ohms));
+    state.currentLSB_A = Calibration.lsbMin_A(Calibration.maxPossibleCurrent_A(brng, pg, state.rshunt_ohms));
     const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
 
     return state.sensor.continuous(calibration, ...params);
@@ -175,7 +175,7 @@ Repler.addCommand({
     const pg = Misc.stringToPG(parts[0]);
 
     return state.sensor.getConfig().then(cfg => {
-      state.currentLSB_A = Calibration.lsbFromExact(Calibration.absoluteMax_A(cfg.brng, pg, state.rshunt_ohms));
+      state.currentLSB_A = Calibration.lsbFromExact(Calibration.maxPossibleCurrent_A(cfg.brng, pg, state.rshunt_ohms));
       const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
       console.log(' gain set values:', state.currentLSB_A, calibration, pg);
       return state.sensor.setCalibrationConfig(calibration, cfg.brng, pg, cfg.sadc, cfg.badc, cfg.mode);
@@ -191,7 +191,7 @@ Repler.addCommand({
     const brng = Misc.stringToBRNG(parts[0]);
 
     return state.sensor.getConfig().then(cfg => {
-      state.currentLSB_A = Calibration.lsbFromExact(Calibration.absoluteMax_A(brng, cfg.pg, state.rshunt_ohms));
+      state.currentLSB_A = Calibration.lsbFromExact(Calibration.maxPossibleCurrent_A(brng, cfg.pg, state.rshunt_ohms));
       const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
       return state.sensor.setCalibrationConfig(calibration, brng, cfg.pg, cfg.sadc, cfg.badc, cfg.mode);
     });

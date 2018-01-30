@@ -14,7 +14,7 @@ function delay(ms, proxy) {
   });
 }
 
-const currentLSB_A = Calibration.lsbMin_A(1.0); // select smalles step size
+const currentLSB_A = Calibration.lsbMin_A(.5); // select smallest / higst resolution step size
 const calibration = Calibration.fromCurrentLSB_A(currentLSB_A, ina219lib.DEFAULT_RSHUNT_OHMS);
 
 rasbus.i2c.init(1, 0x40).then(bus => {
