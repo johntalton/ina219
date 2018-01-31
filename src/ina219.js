@@ -228,6 +228,7 @@ module.exports = {
 	ina219: ina219,
 	calibration: Calibration,
 	units: Units,
+	chip: Chip,
 
 	brng: BRNG,
 	pg: PG,

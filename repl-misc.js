@@ -1,3 +1,5 @@
+"use strict";
+
 const ina219lib = require('./src/ina219.js');
 
 class Misc {
@@ -80,6 +82,24 @@ class Misc {
     if(brngstr === '32') { return ina219lib.brng.BUS_32; }
     throw Error('brng conversion error');
   }
+
+  static stringToADC(adcstr) {
+    switch(adcstr) {
+      case '9b': return ina219lib.adc.ADC_9_BIT;
+      case '10b': return ina219lib.adc.ADC_10_BIT;
+      case '11b': return ina219lib.adc.ADC_11_BIT;
+      case '12b': return ina219lib.adc.ADC_12_BIT;
+      case '1': return ina219lib.adc.ADC_1_SAMPLE;
+      case '2': return ina219lib.adc.ADC_2_SAMPLES;
+      case '4': return ina219lib.adc.ADC_4_SAMPLES;
+      case '8': return ina219lib.adc.ADC_8_SAMPLES;
+      case '16': return ina219lib.adc.ADC_16_SAMPLES;
+      case '32': return ina219lib.adc.ADC_32_SAMPLES;
+      case '64': return ina219lib.adc.ADC_64_SAMPLES;
+      case '128': return ina219lib.adc.ADC_128_SAMPLES;
+      default: throw Error('adc converstion error');
+    }
+  }
 }
 
 const trigger_config = [
@@ -96,44 +116,12 @@ const trigger_config = [
   {
     name: 'sadc',
     valids: ['9b', '10b', '11b', '12b', '1', '2', '4', '8', '16', '32', '64', '128'],
-    toenum: sadc => {
-      switch(sadc) {
-        case '9b': return ina219lib.adc.ADC_9_BIT;
-        case '10b': return ina219lib.adc.ADC_10_BIT;
-        case '11b': return ina219lib.adc.ADC_11_BIT;
-        case '12b': return ina219lib.adc.ADC_12_BIT;
-        case '1': return ina219lib.adc.ADC_1_SAMPLE;
-        case '2': return ina219lib.adc.ADC_2_SAMPLES;
-        case '4': return ina219lib.adc.ADC_4_SAMPLES;
-        case '8': return ina219lib.adc.ADC_8_SAMPLES;
-        case '16': return ina219lib.adc.ADC_16_SAMPLES;
-        case '32': return ina219lib.adc.ADC_32_SAMPLES;
-        case '64': return ina219lib.adc.ADC_64_SAMPLES;
-        case '128': return ina219lib.adc.ADC_128_SAMPLES;
-        default: throw Error('sadc converstion error');
-      }
-    }
+    toenum: Misc.stringToADC
   },
   {
     name: 'badc',
     valids: ['9b', '10b', '11b', '12b', '1', '2', '4', '8', '16', '32', '64', '128'],
-    toenum: badc => {
-      switch(badc) {
-        case '9b': return ina219lib.adc.ADC_9_BIT;
-        case '10b': return ina219lib.adc.ADC_10_BIT;
-        case '11b': return ina219lib.adc.ADC_11_BIT;
-        case '12b': return ina219lib.adc.ADC_12_BIT;
-        case '1': return ina219lib.adc.ADC_1_SAMPLE;
-        case '2': return ina219lib.adc.ADC_2_SAMPLES;
-        case '4': return ina219lib.adc.ADC_4_SAMPLES;
-        case '8': return ina219lib.adc.ADC_8_SAMPLES;
-        case '16': return ina219lib.adc.ADC_16_SAMPLES;
-        case '32': return ina219lib.adc.ADC_32_SAMPLES;
-        case '64': return ina219lib.adc.ADC_64_SAMPLES;
-        case '128': return ina219lib.adc.ADC_128_SAMPLES;
-        default: throw Error('badc converstion error');
-      }
-    }
+    toenum: badc => Misc.stringToADC
   },
   {
     name: 'shunt',
@@ -172,6 +160,7 @@ module.exports = {
   configString: Misc.configString,
   stringToPG: Misc.stringToPG,
   stringToBRNG: Misc.stringToBRNG,
+  stringToADC: Misc.stringToADC,
 
   trigger_config: trigger_config,
   comp: comp,

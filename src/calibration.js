@@ -155,7 +155,7 @@ function example_3() {
     overflow_current: true,
     max_shuntvoltage: Range.from(.04), // ?
     overflow_vshunt: true,
-    max_power: Range.from(320)
+    max_power: Range.from(320) // ?
   });
 }
 

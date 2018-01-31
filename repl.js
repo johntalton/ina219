@@ -20,6 +20,14 @@ Repler.addPrompt((state) => {
 });
 
 Repler.addCommand({
+  name: 'gcr',
+  valid: () => true,
+  callback: (state) => {
+    return rasbus.i2c.init(1, 0).then(bus => bus.writeSpecial(0x06));
+  }
+});
+
+Repler.addCommand({
   name: 'init',
   completer: undefined,
   valid: (state) => state.sensor === undefined,
@@ -47,8 +55,15 @@ Repler.addCommand({
     return state.sensor.getCalibration().then(calibration => {
       if(state.currentLSB_A === undefined) {
         console.log('\tsetting current lsb from calibrtion');
-        state.currentLSB_A = Calibration.toCurrentLSB(calibration.raw, state.rshunt_ohms);
+        const est_currentlsb = Calibration.toCurrentLSB(calibration.raw, state.rshunt_ohms);
+        state.currentLSB_A = est_currentlsb;
+      } else {
+        const est_cali = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
+        if(est_cali !== calibration.raw) {
+          console.log(' * cached calibration missmatch', est_cali, calibration.raw);
+        }
       }
+
       console.log('calibration: ' + calibration.raw);
     })
   }
@@ -168,6 +183,21 @@ Repler.addCommand({
 });
 
 Repler.addCommand({
+  name: 'bus',
+  valid: state => state.sensor !== undefined,
+  callback: function(state) {
+    const parts = state.line.trim().split(' ').slice(1);
+    const brng = Misc.stringToBRNG(parts[0]);
+
+    return state.sensor.getConfig().then(cfg => {
+      state.currentLSB_A = Calibration.lsbMin_A(Calibration.maxPossibleCurrent_A(brng, cfg.pg, state.rshunt_ohms));
+      const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
+      return state.sensor.setCalibrationConfig(calibration, brng, cfg.pg, cfg.sadc, cfg.badc, cfg.mode);
+    });
+  }
+});
+
+Repler.addCommand({
   name: 'gain',
   valid: state => state.sensor !== undefined,
   callback: function(state) {
@@ -175,7 +205,7 @@ Repler.addCommand({
     const pg = Misc.stringToPG(parts[0]);
 
     return state.sensor.getConfig().then(cfg => {
-      state.currentLSB_A = Calibration.lsbFromExact(Calibration.maxPossibleCurrent_A(cfg.brng, pg, state.rshunt_ohms));
+      state.currentLSB_A = Calibration.lsbMin_A(Calibration.maxPossibleCurrent_A(cfg.brng, pg, state.rshunt_ohms));
       const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
       console.log(' gain set values:', state.currentLSB_A, calibration, pg);
       return state.sensor.setCalibrationConfig(calibration, cfg.brng, pg, cfg.sadc, cfg.badc, cfg.mode);
@@ -184,16 +214,19 @@ Repler.addCommand({
 });
 
 Repler.addCommand({
-  name: 'bus',
+  name: 'adc',
   valid: state => state.sensor !== undefined,
-  callback: function(state) {
+  completer: foo => console.log(foo),
+  callback: (state) => {
     const parts = state.line.trim().split(' ').slice(1);
-    const brng = Misc.stringToBRNG(parts[0]);
+    const which = parts[0];
+    const adc = Misc.stringToADC(parts[1]);
 
     return state.sensor.getConfig().then(cfg => {
-      state.currentLSB_A = Calibration.lsbFromExact(Calibration.maxPossibleCurrent_A(brng, cfg.pg, state.rshunt_ohms));
-      const calibration = Calibration.fromCurrentLSB_A(state.currentLSB_A, state.rshunt_ohms);
-      return state.sensor.setCalibrationConfig(calibration, brng, cfg.pg, cfg.sadc, cfg.badc, cfg.mode);
+      const sadc = 'shunt'.startsWith(which) ? adc : cfg.sadc;
+      const badc = 'bus'.startsWith(which) ? adc : cfg.badc;
+
+      return state.sensor.setConfig(cfg.brng, cfg.pg, sadc, badc, cfg.mode);
     });
   }
 });

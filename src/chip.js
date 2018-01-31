@@ -2,6 +2,9 @@ module.exports = {
 
   RSHUNT_OHMS: 0.1, // default adafruit resister
   DEFAULT_I2C_ADDRESS: 0x40, // default i2c address
+  DEFAULT_I2C_ADDRESSES: [ 0x40, 0x41, 0x44, 0x45 ], // default adafruilt set
+
+  SPEC_MAX_V: 26,
 
   REGISTERS: {
     CONFIG:      0x00,
