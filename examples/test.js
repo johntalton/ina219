@@ -23,7 +23,8 @@ rasbus.i2c.init(1, 0x40).then(bus => {
       .then(() => sensor.getConfigCalibration().then(console.log))
       .then(() => delay(50)) // ajust to trigger config
       .then(() => sensor.getAll(currentLSB_A).then(console.log));
-  });
+  })
+  .then(() => { bus.close(); });
 }).catch(e => {
   console.log('caughterror', e);
 });

@@ -1,6 +1,6 @@
 "use strict";
 
-const ina219lib = require('./src/ina219.js');
+const ina219lib = require('../src/ina219.js');
 
 class Misc {
   static brngString(brng) {
