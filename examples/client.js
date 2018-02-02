@@ -1,6 +1,6 @@
 
 const rasbus = require('rasbus');
-const ina219lib = require('./src/ina219');
+const ina219lib = require('../src/ina219');
 const ina219 = ina219lib.ina219;
 const Calibration = ina219lib.calibration;
 const Chip = ina219lib.chip;
@@ -20,6 +20,10 @@ function configuration() {
 
     max_A: 0.4
   });
+}
+
+function loadConfigurationFile(config) {
+  return config;
 }
 
 function loadBus(config) {
@@ -71,7 +75,7 @@ function poll(config) {
     .then(storeResult)
     .catch(e => {
       console.log('poll error', e);
-      clearInterval(config.timer);
+      teardown(config);
     });
 }
 
@@ -81,6 +85,7 @@ function validateCalibration(config) {
   if(config.nthPollCalibrationCheck !== undefined) {
     if(config.nthPollCalibrationCheck <= config.nthPoll) {
       config.nthPoll = 0;
+
       config.sensor.getCalibration().then(calibration => {
         if(config.calibration !== calibration.raw) {
           console.log(' *** calibration missmatch');
@@ -96,6 +101,21 @@ function validateCalibration(config) {
   }
 }
 
+function addHandlers(config) {
+  process.on('SIGINT', () => {
+    console.log('Goodbye');
+    teardown(config);
+  });
+
+  return config;
+}
+
+function teardown(config) {
+  clearInterval(config.timer);
+  config.bus.close().then(() => console.log('bus down'));
+}
+
+
 function storeConfig(config) {
   console.log(config);
 }
@@ -104,7 +124,11 @@ function storeResult(result) {
   console.log(result.load.V, result.current.mA, result.power.mW);
 }
 
+
+
 configuration()
+  .then(loadConfigurationFile)
+  .then(addHandlers)
   .then(loadBus)
   .then(loadSensor)
   .then(calcCalibration)
@@ -112,5 +136,7 @@ configuration()
   .then(startPoll)
   .then(config => console.log('OK.'))
   .catch(e => {
-    console.log('top-level error', e);
-  })
+    console.log('top-level error');
+    console.log(e.name);
+    console.log(e.message);
+  });

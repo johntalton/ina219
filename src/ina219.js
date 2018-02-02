@@ -36,7 +36,7 @@ class Sensor {
 
   setCalibrationConfig(calibration, brng, pg, sadc, badc, mode) {
     return this.setCalibration(calibration)
-      .then(this.setConfig(brng, pg, sadc, badc, mode));
+      .then(() => this.setConfig(brng, pg, sadc, badc, mode));
   }
 
   setConfig(brng, pg, sadc, badc, mode) {

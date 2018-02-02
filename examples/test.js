@@ -1,5 +1,5 @@
 const rasbus = require('rasbus');
-const ina219lib = require('./src/ina219');
+const ina219lib = require('../src/ina219');
 const ina219 = ina219lib.ina219;
 const Calibration = ina219lib.calibration;
 

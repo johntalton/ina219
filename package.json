@@ -5,12 +5,16 @@
   "main": "client.js",
   "dependencies": {
     "i2c": "^0.2.3",
-    "i2c-bus": "^1.2.2",
+    "i2c-bus": "^1.2.5",
     "rasbus": "file:../rasbus"
   },
   "repository": {
     "type": "git",
     "url": "git@github.com:johntalton/ina219.git"
   },
-  "author": "johntalton@gmail.com"
+  "author": "johntalton@gmail.com",
+
+  "scripts": {
+    "test": "node examples/test"
+  }
 }

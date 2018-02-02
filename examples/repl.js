@@ -2,7 +2,7 @@
 
 const rasbus = require('rasbus');
 const Repler = require('./repler.js');
-const ina219lib = require('./src/ina219.js');
+const ina219lib = require('../src/ina219.js');
 const ina219 = ina219lib.ina219;
 const Misc = require('./repl-misc.js');
 const Calibration = ina219lib.calibration;
