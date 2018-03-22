@@ -8,12 +8,14 @@
     "i2c-bus": "^1.2.5",
     "rasbus": "file:../rasbus"
   },
+  "devDependencies": {
+    "repler": "file:../repler"
+  },
   "repository": {
     "type": "git",
     "url": "git@github.com:johntalton/ina219.git"
   },
   "author": "johntalton@gmail.com",
-
   "scripts": {
     "test": "node examples/test"
   }
