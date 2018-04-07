@@ -1,3 +1,5 @@
+"use strict";
+
 const Units = require('./units.js');
 const Chip = require('./chip.js');
 const Calibration = require('./calibration.js');
@@ -16,7 +18,7 @@ const MODES = Chip.MODES;
  **/
 class ina219 {
   static sensor(bus) {
-    return Promise.resolve(new Sensor(bus, Chip.RSHUNT_OHMS));
+    return Promise.resolve(new Sensor(bus));
   }
 }
 
@@ -24,8 +26,7 @@ class ina219 {
  *
  **/
 class Sensor {
-  constructor(bus, rshunt_ohm) {
-    // this._rshunt_ohm = rshunt_ohm;
+  constructor(bus) {
     this._bus = bus;
   }
 

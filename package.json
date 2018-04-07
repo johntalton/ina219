@@ -9,6 +9,7 @@
     "rasbus": "file:../rasbus"
   },
   "devDependencies": {
+    "csv-writer": "^1.0.0",
     "repler": "file:../repler"
   },
   "repository": {

@@ -54,6 +54,7 @@ module.exports = {
     ADC_11_BIT:      0b0010, // 276 us
     ADC_12_BIT:      0b0011, // 532 us (default)
     ADC_1_SAMPLE:    0b1000, // 532 us (12bit, or 1 sample)
+    ADC_1_SAMPLES:   0b1000, // ^^ alias for plural - i know :)
     ADC_2_SAMPLES:   0b1001, // 1.06 us
     ADC_4_SAMPLES:   0b1010, // 2.13 ms
     ADC_8_SAMPLES:   0b1011, // 4.26 ms
