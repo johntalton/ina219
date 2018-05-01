@@ -12,7 +12,7 @@ function configuration() {
     name: 'battery monitor',
     bus: {
       type: 'i2cbus',
-      params: [1, 0x40]
+      params: [42, 0x40]
     },
 
     pollIntervalMS: 1000 * 1,
