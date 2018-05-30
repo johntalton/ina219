@@ -4,11 +4,11 @@
   "description": "",
   "main": "client.js",
   "dependencies": {
-    "rasbus": "file:../rasbus"
+    "rasbus": "johntalton/rasbus"
   },
   "devDependencies": {
     "csv-writer": "^1.0.0",
-    "repler": "file:../repler"
+    "repler": "johntalton/repler"
   },
   "repository": {
     "type": "git",
