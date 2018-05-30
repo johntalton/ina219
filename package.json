@@ -1,5 +1,5 @@
 {
-  "name": "ina219",
+  "name": "@johntalton/ina219",
   "version": "1.0.0",
   "description": "",
   "main": "src/ina219.js",

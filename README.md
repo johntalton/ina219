@@ -6,6 +6,12 @@ A more feature rich version of the ina219 javascript package.  It allows for con
 or
 [from Ti](http://www.ti.com/lit/ds/symlink/ina219.pdf)
 
+## Install
+
+standard npm install
+
+`npm install --save @johntalton/ina219`
+
 ## Timing
 
 it is up to you to respect call timing of the chip. (todo add misc method to aid in calculation)
