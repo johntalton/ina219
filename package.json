@@ -2,7 +2,7 @@
   "name": "ina219",
   "version": "1.0.0",
   "description": "",
-  "main": "client.js",
+  "main": "src/ina219.js",
   "dependencies": {
     "rasbus": "johntalton/rasbus"
   },
