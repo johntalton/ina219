@@ -2,7 +2,7 @@
  *
  **/
 class Units {
-  static mVtoV(mV){
+  static mVtoV(mV) {
     return mV * 0.001;
   }
 

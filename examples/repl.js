@@ -36,7 +36,7 @@ Repler.addCommand({
 
 
 
-    return rasbus.i2c.init(1, 0x40).then(bus => {
+    return rasbus.byname('i2cbus').init(42, 0x40).then(bus => {
       return ina219.sensor(bus).then(sensor => { state.sensor = sensor });
     });
   }

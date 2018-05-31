@@ -2,7 +2,7 @@ module.exports = {
 
   RSHUNT_OHMS: 0.1, // default adafruit resister
   DEFAULT_I2C_ADDRESS: 0x40, // default i2c address
-  DEFAULT_I2C_ADDRESSES: [ 0x40, 0x41, 0x44, 0x45 ], // default adafruilt set
+  DEFAULT_I2C_ADDRESSES: [0x40, 0x41, 0x44, 0x45], // default adafruit set
 
   SPEC_MAX_V: 26,
 
@@ -19,7 +19,7 @@ module.exports = {
     CFG_RESET: 0x8000,
     CFG_BRNG:  0x2000,
     CFG_PG:    0x1800,
-    CFG_BADC:  0x0780, // only place its bus then shunt everwhere else is shunt then bus
+    CFG_BADC:  0x0780, // only place its bus then shunt everywhere else is shunt then bus
     CFG_SADC:  0x0078,
     CFG_MODE:  0x0007,
 
