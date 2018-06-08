@@ -1,10 +1,10 @@
 {
   "name": "@johntalton/ina219",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "",
   "main": "src/ina219.js",
   "dependencies": {
-    "rasbus": "johntalton/rasbus"
+    "rasbus": "johntalton/rasbus#lastMultiplex"
   },
   "devDependencies": {
     "csv-writer": "^1.0.0",
