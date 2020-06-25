@@ -1,6 +1,7 @@
 "use strict";
 
-const rasbus = require('rasbus');
+const i2c = require('i2c-bus');
+const { I2CAddressedBus } = require('@johntalton/and-other-delights');
 
 const ina219lib = require('../src/ina219');
 const ina219 = ina219lib.ina219;
@@ -11,8 +12,7 @@ function configuration() {
   return Promise.resolve({
     name: 'battery monitor',
     bus: {
-      type: 'i2cbus',
-      params: [42, 0x40]
+      params: [1, 0x40]
     },
 
     pollIntervalMS: 1000 * 1,
@@ -35,10 +35,14 @@ function loadConfigurationFile(config) {
 }
 
 function loadBus(config) {
-  return rasbus.byname(config.bus.type).init(...config.bus.params).then(bus => {
-    config.bus._client = bus;
-    return config;
-  });
+  const [ busNumber, busAddress ] = config.bus.params;
+
+  return i2c.openPromisified(busNumber)
+    .then(bus => new I2CAddressedBus(bus, busAddress))
+    .then(bus => {
+      config.bus._client = bus;
+      return config;
+    });
 }
 
 function loadSensor(config) {
@@ -184,7 +188,7 @@ configuration()
   .then(startPoll)
   .then(config => console.log('OK.'))
   .catch(e => {
-    console.log('top-level error');
+    console.log('top-level error', e);
     console.log(e.name);
     console.log(e.message);
   });

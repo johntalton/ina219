@@ -1,7 +1,9 @@
 "use strict";
 
-const rasbus = require('rasbus');
+const i2c = require('i2c-bus');
+const { I2CAddressedBus } = require('@johntalton/and-other-delights');
 const Repler = require('repler');
+
 const ina219lib = require('../src/ina219.js');
 const ina219 = ina219lib.ina219;
 const Misc = require('./repl-misc.js');
@@ -34,11 +36,10 @@ Repler.addCommand({
   callback: function(state) {
     const parts = state.line.trim().split(' ').slice(1);
 
-
-
-    return rasbus.byname('i2cbus').init(42, 0x40).then(bus => {
-      return ina219.sensor(bus).then(sensor => { state.sensor = sensor });
-    });
+    return i2c.openPromisified(1)
+      .then(bus => new I2CAddressedBus(bus, 0x40))
+      .then(bus => ina219.sensor(bus))
+      .then(sensor => { state.sensor = sensor });
   }
 });
 
