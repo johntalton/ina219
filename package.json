@@ -5,7 +5,7 @@
   "main": "src/ina219.js",
   "dependencies": {},
   "devDependencies": {
-    "@johntalton/and-other-delights": "^2.0.0",
+    "@johntalton/and-other-delights": "^3.0.2",
     "csv-writer": "^1.0.0",
     "eslint": "^7.3.0",
     "eslint-plugin-fp": "^2.3.0",
