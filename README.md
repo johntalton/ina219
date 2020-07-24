@@ -8,7 +8,7 @@ A more feature rich version of the ina219 javascript package.  It allows for con
 ![GitHub](https://img.shields.io/github/license/johntalton/ina219)
 [![Downloads Per Month](https://img.shields.io/npm/dm/@johntalton/ina219.svg)](https://www.npmjs.com/package/@johntalton/ina219)
 ![GitHub last commit](https://img.shields.io/github/last-commit/johntalton/ina219)
-
+[![Package Quality](https://npm.packagequality.com/shield/%40johntalton%2Fina219.svg)](https://packagequality.com/#?package=@johntalton/ina219)
 
 [Spec from Adafruit](https://cdn-shop.adafruit.com/datasheets/ina219.pdf)
 or
