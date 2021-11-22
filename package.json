@@ -7,7 +7,7 @@
   "devDependencies": {
     "@johntalton/and-other-delights": "^3.0.2",
     "csv-writer": "^1.0.0",
-    "eslint": "^7.3.0",
+    "eslint": "^8.3.0",
     "eslint-plugin-fp": "^2.3.0",
     "eslint-plugin-immutable": "^1.0.0",
     "eslint-plugin-import": "^2.12.0",
