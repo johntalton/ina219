@@ -4,7 +4,7 @@ A more feature rich version of the ina219 javascript package.  It allows for con
 
 [![npm Version](https://img.shields.io/npm/v/@johntalton/ina219.svg)](https://www.npmjs.com/package/@johntalton/ina219)
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/johntalton/ina219)
-![CI](https://github.com/johntalton/ina219/workflows/CI/badge.svg?branch=master&event=push)
+![CI](https://github.com/johntalton/ina219/workflows/CI/badge.svg)
 ![CodeQL](https://github.com/johntalton/ina219/workflows/CodeQL/badge.svg)
 ![GitHub](https://img.shields.io/github/license/johntalton/ina219)
 [![Downloads Per Month](https://img.shields.io/npm/dm/@johntalton/ina219.svg)](https://www.npmjs.com/package/@johntalton/ina219)
